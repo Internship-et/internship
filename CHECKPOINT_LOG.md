@@ -33,7 +33,7 @@
 
 | # | Checkpoint | Status | Completed | Notes |
 |---|-----------|--------|-----------|-------|
-| 0 | Preflight — Environment verification | ⏳ PENDING | — | — |
+| 0 | Preflight — Environment verification | ✅ COMPLETE | 2025-01-15 | All tools verified, git initialized, .gitignore created, initial commit made |
 | 1 | Monorepo — Turborepo init, TypeScript configs | ⏳ PENDING | — | — |
 | 2 | Docker — Compose for PostgreSQL + Redis | ⏳ PENDING | — | — |
 | 3 | Prisma — Schema design & initial migration | ⏳ PENDING | — | — |
