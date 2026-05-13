@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────
+# Staging Docker Compose
+# Production-like environment for staging verification.
+# Uses the production Dockerfile without watch/reload tooling.
+#
+# Usage:
+#   export STAGE_JWT_SECRET="your-64-char-hex-secret"
+#   docker compose -f docker-compose.stage.yml up -d
+#   docker compose -f docker-compose.stage.yml exec api npx prisma migrate deploy
+#   curl http://localhost:3001/health
+#
+# Optional env file (not committed):
+#   cp apps/api/.env.stage.example apps/api/.env.stage
+#   # Then edit .env.stage with real secrets
+#   docker compose -f docker-compose.stage.yml --env-file apps/api/.env.stage up -d
+# ─────────────────────────────────────────────────────────────
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: internship
+      POSTGRES_PASSWORD: ${STAGE_DB_PASSWORD:-stage_dev}
+      POSTGRES_DB: internship_stage
+    ports:
+      - "5434:5432"                                  # Different from dev (5432) and test-db (5433)
+    volumes:
+      - stage_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U internship -d internship_stage"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"                                  # Different from dev (6379)
+    volumes:
+      - stage_redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3000"                                  # Different from dev (3000)
+    environment:
+      NODE_ENV: staging
+      PORT: 3000
+      DATABASE_URL: postgresql://internship:${STAGE_DB_PASSWORD:-stage_dev}@postgres:5432/internship_stage
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${STAGE_JWT_SECRET:?STAGE_JWT_SECRET is required — set it to a strong random value (min 32 chars)}
+      CORS_ORIGINS: ${STAGE_CORS_ORIGINS:-http://localhost:3001}
+      LOG_LEVEL: info
+    env_file:
+      - path: ./apps/api/.env.stage
+        required: false                              # Optional — inline env vars above cover all required values
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  stage_postgres_data:
+  stage_redis_data:

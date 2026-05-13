@@ -12,7 +12,7 @@
 | `PORT` | Server port | `3000` | `3000` |
 | `DATABASE_URL` | PostgreSQL connection string | — | `postgresql://user:pass@localhost:5432/internship` |
 | `JWT_SECRET` | JWT signing secret (min 32 chars) | — | Min 32 chars of entropy |
-| `REDIS_URL` | Redis connection string | — | `redis://localhost:6379` |
+| `REDIS_URL` | Redis connection string (optional — defaults to `redis://localhost:6379`; in-memory fallback if unavailable) | `redis://localhost:6379` | Production (recommended) |
 
 ---
 
@@ -20,10 +20,12 @@
 
 | Variable | Description | Default | Required In |
 |----------|-------------|---------|-------------|
-| `JWT_ACCESS_EXPIRY` | Access token expiry | `15m` | — |
-| `JWT_REFRESH_EXPIRY` | Refresh token expiry | `7d` | — |
+| `JWT_ACCESS_EXPIRES_IN` | Access token expiry | `15m` | — |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry | `7d` | — |
 | `BCRYPT_SALT_ROUNDS` | Bcrypt cost factor | `10` | — |
-| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | `http://localhost:3000` | Production |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated). **Preferred** — if both `CORS_ORIGINS` and `CORS_ORIGIN` are set, this wins. | `http://localhost:3000` | Production |
+| `CORS_ORIGIN` | Allowed CORS origins (comma-separated). **Legacy/deprecated** — use `CORS_ORIGINS` instead. Falls back to `*` if neither is set. | `*` | — |
+| `API_PREFIX` | API route prefix | `/api/v1` | — |
 | `RATE_LIMIT_WINDOW_MS` | Rate limit window | `900000` (15 min) | — |
 | `RATE_LIMIT_MAX` | Default max requests | `100` | — |
 | `LOG_LEVEL` | Logging level | `info` | Production |
@@ -39,6 +41,20 @@
 | `STORAGE_ACCESS_KEY` | Storage access key | — | Production |
 | `STORAGE_SECRET_KEY` | Storage secret key | — | Production |
 | `SENTRY_DSN` | Sentry error tracking DSN | — | Production |
+
+---
+
+## Configuration Template
+
+An example production environment file is available at:
+[`apps/api/.env.prod.example`](../apps/api/.env.prod.example)
+
+Copy and modify for your environment:
+
+```bash
+cp apps/api/.env.prod.example apps/api/.env.prod
+# Then edit .env.prod with real values
+```
 
 ---
 
@@ -93,13 +109,26 @@ SENTRY_DSN=https://XXX@sentry.io/XXX
 
 ---
 
+## JWT Secret Requirements
+
+`JWT_SECRET` must be **at least 32 characters long**. The application validates this at startup and will throw an error if the secret is too short.
+
+Generate a strong secret:
+
+```bash
+# 64-character random hex string
+openssl rand -hex 32
+```
+
+---
+
 ## Validation at Startup
 
 The application validates required environment variables at startup:
 
 ```typescript
 // src/config/index.ts
-const requiredVars = ['DATABASE_URL', 'JWT_SECRET', 'REDIS_URL'];
+const requiredVars = ['DATABASE_URL', 'JWT_SECRET'];
 
 for (const varName of requiredVars) {
   if (!process.env[varName]) {
@@ -107,3 +136,5 @@ for (const varName of requiredVars) {
   }
 }
 ```
+
+Note: `REDIS_URL` is **optional** — if not provided, the application defaults to `redis://localhost:6379` and falls back to in-memory operation if Redis is unavailable.

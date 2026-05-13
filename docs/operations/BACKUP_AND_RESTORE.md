@@ -60,24 +60,42 @@ docker exec -t internship-postgres \
 
 ### 2.3 Automated Backup Script
 
+A production-ready backup script is available at [`scripts/backup.sh`](../scripts/backup.sh).
+
+**Features:**
+- Configurable via environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, BACKUP_DIR, RETENTION_DAYS)
+- Timestamped, gzip-compressed SQL dumps
+- Automatic retention cleanup (configurable, default 30 days)
+- Success/failure logging to stdout
+- Non-zero exit on failure (for cron alerting)
+- Secure — uses `PGPASSWORD` environment variable, never passes password on command line
+
+**Usage:**
+
 ```bash
-#!/bin/bash
-# scripts/backup.sh
+# Basic usage (requires PGPASSWORD)
+PGPASSWORD=your_password ./scripts/backup.sh
 
-BACKUP_DIR="/backups"
-DB_NAME="internship_prod"
-DB_USER="internship"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-
-# Create backup
-pg_dump -U $DB_USER $DB_NAME | gzip > $BACKUP_DIR/${DB_NAME}_${TIMESTAMP}.sql.gz
-
-# Remove backups older than 30 days
-find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
-
-# Log
-echo "Backup created: ${DB_NAME}_${TIMESTAMP}.sql.gz"
+# Custom configuration via environment variables
+export PGHOST=prod-db.example.com
+export PGPORT=5432
+export PGUSER=internship
+export PGPASSWORD=your_password
+export PGDATABASE=internship_prod
+export BACKUP_DIR=/var/backups/postgres
+export RETENTION_DAYS=60
+./scripts/backup.sh
 ```
+
+**Automation (cron):**
+
+```bash
+# Run daily at 2 AM
+0 2 * * * PGPASSWORD=your_password /path/to/scripts/backup.sh >> /var/log/backup.log 2>&1
+```
+
+> ⚠️ **Security note:** Never pass `PGPASSWORD` directly in the cron command line.
+> Use a dedicated environment file or a secrets manager to supply credentials.
 
 ---
 
@@ -122,8 +140,9 @@ docker exec -t internship-postgres \
 ## 4. Restoration Testing
 
 - Backups are tested monthly by restoring to a staging environment
-- Test includes: data integrity check, application smoke tests
+- Test includes: data integrity check, application smoke tests, application health check
 - Restoration time is measured and documented
+- The `scripts/backup.sh` script's `pg_dump` output is compatible with all restore methods below
 
 ---
 

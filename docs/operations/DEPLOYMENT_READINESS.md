@@ -8,8 +8,8 @@
 
 ### 1.1 Code Readiness
 
-- [ ] All tests pass
-- [ ] Coverage meets minimum thresholds
+- [ ] All tests pass (829+ tests, 86%+ coverage)
+- [ ] CI pipeline passes (lint → typecheck → test:coverage → npm audit)
 - [ ] No TypeScript errors
 - [ ] No lint errors
 - [ ] All PRs reviewed and approved
@@ -28,12 +28,15 @@
 
 ### 1.3 Configuration Readiness
 
-- [ ] All environment variables are set
-- [ ] JWT secret is set (strong, random)
-- [ ] Database URL is correct
-- [ ] Redis URL is correct
-- [ ] CORS origins are configured for production domain
+- [ ] All environment variables are set (see `ENVIRONMENT_VARIABLES.md`)
+- [ ] `JWT_SECRET` is set (minimum 32 characters)
+- [ ] `CORS_ORIGINS` or legacy `CORS_ORIGIN` is configured for production domain
+- [ ] `DATABASE_URL` is correct
+- [ ] `REDIS_URL` is correct (optional — in-memory fallback available)
+- [ ] `API_PREFIX` is set (default: `/api/v1`)
+- [ ] `JWT_ACCESS_EXPIRES_IN` and `JWT_REFRESH_EXPIRES_IN` are configured
 - [ ] Rate limits are configured for production
+- [ ] `NODE_ENV=production` is set
 
 ---
 
@@ -147,7 +150,13 @@ npx prisma migrate deploy
 | CPU usage | < 70% | > 85% |
 | Memory usage | < 70% | > 85% |
 | Database connections | < 50 | > 80% of max |
-| Redis memory | < 50% | > 80% |
+| Redis memory | < 50% | > 80% of max |
+
+See also:
+- `docs/operations/METRICS_AND_MONITORING.md` — Full metrics plan
+- `docs/operations/ERROR_TRACKING_PLAN.md` — Error tracking plan
+- `docs/operations/PERFORMANCE_BENCHMARK_PLAN.md` — Benchmark plan
+- `docs/operations/DOCKER_PRODUCTION_GUIDE.md` — Docker deployment guide
 
 ---
 

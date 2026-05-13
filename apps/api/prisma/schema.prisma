@@ -1,0 +1,301 @@
+// ─────────────────────────────────────────────────────────────
+// Prisma Schema — Internship Platform
+// This is the source of truth for the database structure.
+// All models, enums, indexes, and relations are defined here.
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  STUDENT
+  COMPANY
+  SCHOOL
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum InternshipStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+enum CompanySize {
+  STARTUP
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum SchoolType {
+  PUBLIC
+  PRIVATE
+  GOVERNMENT
+}
+
+enum InternshipType {
+  ON_SITE
+  REMOTE
+  HYBRID
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────
+
+/// Base user table with role discriminator.
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  firstName    String     @map("first_name")
+  lastName     String     @map("last_name")
+  phone        String?
+  role         UserRole
+  status       UserStatus @default(PENDING)
+  isVerified   Boolean    @default(false) @map("is_verified")
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  lastLoginAt DateTime? @map("last_login_at")
+
+  // Relations
+  studentProfile Student?
+  companyProfile  Company?
+  schoolProfile   School?
+  auditLogs      AuditLog[]
+
+  @@index([role])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// Role-specific student profile.
+model Student {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  schoolId         String?  @map("school_id") @db.Uuid
+  grade            Int?     // 9–12
+  dateOfBirth      DateTime? @map("date_of_birth")
+  bio              String?
+  skills           String[]
+  interests        String[]
+  languages        String[]
+  resumeUrl        String?  @map("resume_url")
+  profileImageUrl  String?  @map("profile_image_url")
+  isSchoolVerified Boolean  @default(false) @map("is_school_verified")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  school       School?       @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  applications Application[]
+
+  @@index([schoolId])
+  @@map("students")
+}
+
+/// Role-specific company / organization profile.
+model Company {
+  id          String      @id @default(uuid()) @db.Uuid
+  userId      String      @unique @map("user_id") @db.Uuid
+  name        String      @unique
+  industry    String
+  description String?
+  logoUrl     String?     @map("logo_url")
+  website     String?
+  city        String
+  address     String?
+  size        CompanySize?
+  foundedYear Int?        @map("founded_year")
+  tinNumber   String?     @map("tin_number") @unique
+  socialLinks Json?       @map("social_links") // { linkedin?: string, twitter?: string }
+  isVerified  Boolean     @default(false) @map("is_verified")
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  internships Internship[]
+
+  @@index([industry])
+  @@index([city])
+  @@index([deletedAt])
+  @@map("companies")
+}
+
+/// Role-specific school profile.
+model School {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @unique @map("user_id") @db.Uuid
+  name          String     @unique
+  type          SchoolType
+  city          String
+  address       String?
+  phone         String?
+  email         String?
+  website       String?
+  principal     String?
+  gradesOffered Int[]      @map("grades_offered")
+  logoUrl       String?    @map("logo_url")
+  licenseNumber String?    @map("license_number")
+  isVerified    Boolean    @default(false) @map("is_verified")
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  students Student[]
+
+  @@index([city])
+  @@index([type])
+  @@index([deletedAt])
+  @@map("schools")
+}
+
+/// Internship opportunity posted by a company.
+model Internship {
+  id               String           @id @default(uuid()) @db.Uuid
+  companyId        String           @map("company_id") @db.Uuid
+  title            String
+  description      String
+  responsibilities String[]
+  requirements     String[]
+  preferredSkills  String[]         @map("preferred_skills")
+  type             InternshipType
+  city             String
+  address          String?
+  durationMonths   Int              @map("duration_months")
+  weeklyHours      Int?             @map("weekly_hours")
+  startDate        DateTime?        @map("start_date")
+  deadline         DateTime?
+  stipend          Json?            // { amount: number, currency: string, period: string }
+  benefits         String[]
+  tags             String[]
+  minGrade         Int?             @map("min_grade")
+  maxGrade         Int?             @map("max_grade")
+  status           InternshipStatus @default(DRAFT)
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  applications Application[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([city])
+  @@index([status, createdAt])
+  @@index([deletedAt])
+  @@map("internships")
+}
+
+/// Application linking a student to an internship.
+model Application {
+  id             String            @id @default(uuid()) @db.Uuid
+  internshipId   String            @map("internship_id") @db.Uuid
+  studentId      String            @map("student_id") @db.Uuid
+  status         ApplicationStatus @default(PENDING)
+  coverLetter    String?           @map("cover_letter")
+  additionalInfo String?           @map("additional_info")
+  companyNote    String?           @map("company_note") // Internal note, not visible to student
+
+  // Timestamps
+  appliedAt DateTime @default(now()) @map("applied_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  internship   Internship                 @relation(fields: [internshipId], references: [id], onDelete: Restrict)
+  student      Student                    @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  statusHistory ApplicationStatusHistory[]
+
+  @@unique([internshipId, studentId])
+  @@index([studentId])
+  @@index([internshipId])
+  @@index([status])
+  @@map("applications")
+}
+
+/// Immutable history of application status changes.
+model ApplicationStatusHistory {
+  id            String            @id @default(uuid()) @db.Uuid
+  applicationId String            @map("application_id") @db.Uuid
+  fromStatus    ApplicationStatus @map("from_status")
+  toStatus      ApplicationStatus @map("to_status")
+  changedById   String            @map("changed_by_id") @db.Uuid
+  note          String?
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId])
+  @@index([changedById])
+  @@map("application_status_history")
+}
+
+/// Immutable audit log for critical system actions.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  action    String   // 'CREATE' | 'UPDATE' | 'DELETE' | 'STATUS_CHANGE' | 'ADMIN_ACTION'
+  entity    String   // 'USER' | 'STUDENT' | 'COMPANY' | 'INTERNSHIP' | 'APPLICATION'
+  entityId  String   @map("entity_id")
+  oldValue  Json?    @map("old_value")
+  newValue  Json?    @map("new_value")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}

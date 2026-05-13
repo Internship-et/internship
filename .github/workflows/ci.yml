@@ -1,0 +1,78 @@
+# ─────────────────────────────────────────────────────────────
+# CI Pipeline
+# Runs on push to main/release branches and on PRs to main.
+# ─────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: [main, 'release/*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Test database — separate from dev database
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready -U test -d test
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Redis for rate limiting and session management
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Align to production Docker base image (node:20-alpine)
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx turbo db:generate
+
+      - name: Apply migrations to test database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/test
+        working-directory: apps/api
+
+      - name: Lint
+        run: npm run lint --workspace=@internship/api
+
+      - name: TypeScript check
+        run: npm run typecheck --workspace=@internship/api
+
+      - name: Run tests with coverage
+        run: npm run test:coverage --workspace=@internship/api
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5433/test
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high

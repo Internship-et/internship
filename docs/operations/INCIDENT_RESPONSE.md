@@ -179,4 +179,15 @@ Post-mortem: [scheduled for]
 
 ---
 
+## 6. Related Documentation
+
+- `docs/operations/DEPLOYMENT_READINESS.md` — Deployment and rollback procedures
+- `docs/operations/BACKUP_AND_RESTORE.md` — Database backup and restore
+- `docs/operations/METRICS_AND_MONITORING.md` — Metrics collection and alert thresholds
+- `docs/operations/ERROR_TRACKING_PLAN.md` — Error tracking configuration
+- `docs/operations/STAGING_RUNBOOK.md` — Staging operations and smoke tests
+- `docs/security/THREAT_MODEL.md` — Security threat model
+
+---
+
 *Stay calm, follow the process, and communicate clearly.*
