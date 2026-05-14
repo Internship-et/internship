@@ -3,7 +3,7 @@
 // JWT generation, verification, and SHA-256 token hashing.
 // ─────────────────────────────────────────────────────────────
 
-import jwt, { type JwtPayload, type SignOptions, TokenExpiredError } from 'jsonwebtoken';
+import jwt, { type JwtPayload, type SignOptions } from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { config } from '../../config/index.js';
 import { UnauthorizedError } from '../errors/app-error.js';
@@ -29,6 +29,7 @@ export interface TokenPair {
 const JWT_SECRET = config.jwtSecret;
 const ACCESS_EXPIRES_IN = config.jwtAccessExpiresIn;
 const REFRESH_EXPIRES_IN = config.jwtRefreshExpiresIn;
+const { TokenExpiredError } = jwt;
 
 // ─── Helpers ────────────────────────────────────────────────
 
