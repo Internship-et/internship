@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git update-ref *)",
+      "Bash(git symbolic-ref *)",
+      "Bash(grep -rn 'queryRaw\\\\|executeRaw\\\\|$queryRawUnsafe' '/Users/samim/indeed high/apps/api/src/')"
+    ]
+  }
+}
